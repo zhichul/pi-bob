@@ -1,8 +1,11 @@
 # system thread
 from threading import Thread
-import threading
 
-from . import rsh
+SCHEDULER_PORT = 8000
+MOTOR_PORT = 8001
+CAM_PORT = 8002
+
+from . import rscheduler
 
 class Rsys():
     """
@@ -14,7 +17,7 @@ class Rsys():
         Starts up the system threads as daemon
         :return:
         """
-        Thread(target=rsh.main).start()
+        Thread(target=rscheduler.main).start()
         pass
 
 

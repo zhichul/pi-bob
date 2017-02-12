@@ -1,8 +1,11 @@
 from threading import Thread
 from xmlrpc.server import SimpleXMLRPCServer
+import xmlrpc
 
 import time
-
+from . import rsys
+from . import rcam
+from . import rmotor
 
 class rscheduler():
 
@@ -56,12 +59,13 @@ class rscheduler():
     def start(self):
         Thread(target=self.routine_m).start()
         Thread(target=self.routine_s).start()
-        server = SimpleXMLRPCServer(("localhost", 8000))
+        server = SimpleXMLRPCServer(("localhost", rsys.SCHEDULER_PORT))
         server.register_function(self.get_modules,"get_modules")
         server.register_function(self.get_stats,"get_stats")
         server.register_function(self.register_module,"register_module")
         server.register_function(self.register_stat,"register_stat")
-        print("Scheduler up and listening at port 8000...")
+        print("Scheduler up and listening at port %d..." % rsys.SCHEDULER_PORT)
+        server.serve_forever()
 
     def get_stats(self):
         return self.stats
@@ -69,8 +73,25 @@ class rscheduler():
     def get_modules(self):
         return self.modules
 
+def check_motor():
+    # try:
+    with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.MOTOR_PORT) as proxy:
+        return proxy.is_alive()
+    # except:
+    #     return False
+
+def check_cam():
+    # try:
+    with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.CAM_PORT) as proxy:
+        return proxy.is_alive()
+    # except:
+    #     return False
+
 def main():
-    rscheduler().start()
+    scheduler = rscheduler()
+    scheduler.register_module("motor", check_motor, rmotor.main)
+    scheduler.register_module("cam",check_cam, rcam.main)
+    Thread(target=scheduler.start).start()
 
 if __name__ == "__main__":
     main()

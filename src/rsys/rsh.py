@@ -1,6 +1,10 @@
 # Simple shell capable of controlling movement, video/audio capture, and running other python modules
 
 import cmd
+import xmlrpc
+
+from . import rsys
+
 
 class Rsh(cmd.Cmd):
     """
@@ -15,12 +19,26 @@ class Rsh(cmd.Cmd):
         plugin = arg.split()[0]
         try:
             exec("from rplugin import %s" % (plugin))
-            main = eval("%s.main" % plugin)
-            main(arg.strip(plugin).strip())
         except:
-            self.stdout.write('*** Unknown plugin: %s\n' % plugin)
+            self.stdout.write('*** Unkown plugin or syntax: %s\n' % arg)
+            return
+        main = eval("%s.main" % plugin)
+        main(arg.strip(plugin).strip())
 
-
+    def do_scheduler(self,arg):
+        args = arg.split()
+        if (len(args) < 1):
+            self.stdout.write('*** Not enough arguments: %s\n' % arg)
+            return None
+        if (args[0] == "stats"):
+            with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.SCHEDULER_PORT) as proxy:
+                print(proxy.get_stats())
+        elif (args[0] == "modules"):
+            with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.SCHEDULER_PORT) as proxy:
+                print(proxy.get_modules())
+        else:
+            self.stdout.write('*** Unrecognized arg: %s\n' % arg)
+            return None
 
     def emptyline(self):
         """
@@ -42,6 +60,7 @@ class Rsh(cmd.Cmd):
         :return: True
         """
         return True
+
 
 def main():
     Rsh().cmdloop()
