@@ -1,4 +1,5 @@
 # Mid-level interface for manipulating camera
+# Thread Count: 1
 from xmlrpc.server import SimpleXMLRPCServer
 from . import rsys
 

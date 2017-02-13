@@ -1,6 +1,13 @@
+"""
+Scheduler module for rsys
+
+Thread Count: 3
+
+"""
 from threading import Thread
-from xmlrpc.server import SimpleXMLRPCServer
 import xmlrpc
+from xmlrpc.server import SimpleXMLRPCServer
+import subprocess
 
 import time
 from . import rsys
@@ -40,11 +47,11 @@ class rscheduler():
                 else:
                     # try to restart the module
                     self.modules[item[0]] = None
-                    Thread(target=start_fn).start()
+                    mp.Process(target=start_fn).start()
             except:
                 # try to restart the module
                 self.modules[item[0]] = None
-                Thread(target=start_fn).start()
+                mp.Process(target=start_fn).start()
 
     def routine_m(self):
         while (True):
@@ -74,23 +81,27 @@ class rscheduler():
         return self.modules
 
 def check_motor():
-    # try:
     with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.MOTOR_PORT) as proxy:
         return proxy.is_alive()
-    # except:
-    #     return False
 
 def check_cam():
-    # try:
     with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.CAM_PORT) as proxy:
         return proxy.is_alive()
-    # except:
-    #     return False
+
+def speed_desired():
+    with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.MOTOR_PORT) as proxy:
+        return proxy.get_speed_actual()
+
+def speed_actual():
+    with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.MOTOR_PORT) as proxy:
+        return proxy.get_speed_desired()
 
 def main():
     scheduler = rscheduler()
     scheduler.register_module("motor", check_motor, rmotor.main)
     scheduler.register_module("cam",check_cam, rcam.main)
+    scheduler.register_stat("motor_speed_actual", speed_actual)
+    scheduler.register_stat("motor_speed_desired", speed_desired)
     Thread(target=scheduler.start).start()
 
 if __name__ == "__main__":

@@ -2,9 +2,7 @@
 
 import cmd
 import xmlrpc
-
 from . import rsys
-
 
 class Rsh(cmd.Cmd):
     """
@@ -15,31 +13,40 @@ class Rsh(cmd.Cmd):
     use_rawinput = True
     intro = "Starting shell..."
 
+    ############### Commands ###############
+
     def do_rp(self,arg):
+        if (len(arg.split()) < 1):
+            self.stdout.write('*** Too few args: %s\n',arg)
+            return None
         plugin = arg.split()[0]
-        try:
-            exec("from rplugin import %s" % (plugin))
-        except:
-            self.stdout.write('*** Unkown plugin or syntax: %s\n' % arg)
-            return
+        exec("from rplugin import %s" % (plugin))
         main = eval("%s.main" % plugin)
         main(arg.strip(plugin).strip())
 
-    def do_scheduler(self,arg):
-        args = arg.split()
-        if (len(args) < 1):
-            self.stdout.write('*** Not enough arguments: %s\n' % arg)
-            return None
-        if (args[0] == "stats"):
-            with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.SCHEDULER_PORT) as proxy:
-                print(proxy.get_stats())
-        elif (args[0] == "modules"):
-            with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.SCHEDULER_PORT) as proxy:
-                print(proxy.get_modules())
-        else:
-            self.stdout.write('*** Unrecognized arg: %s\n' % arg)
-            return None
+    def do_stats(self,arg):
+        with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.SCHEDULER_PORT) as proxy:
+            print(proxy.get_stats())
 
+    def do_mods(self,arg):
+        with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.SCHEDULER_PORT) as proxy:
+            print(proxy.get_modules())
+
+    def do_motor(self,arg):
+        if (len(arg.split()) >= 2):
+            args = arg.split()
+            l, r = int(args[0]), int(args[1])
+            with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.MOTOR_PORT) as proxy:
+                print(proxy.set_speed(l,r))
+        with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.MOTOR_PORT) as proxy:
+            print("Desired Speed:", proxy.get_speed_desired())
+            print("Actual Speed", proxy.get_speed_actual())
+
+    def do_cam(self,arg):
+        print(NotImplemented)
+        pass
+
+    ############### Overriding methods ##############
     def emptyline(self):
         """
         Do nothing if empty line is entered.
@@ -62,6 +69,13 @@ class Rsh(cmd.Cmd):
         return True
 
 
+    def onecmd(self, line):
+        try:
+            return super().onecmd(line)
+        except Exception as e:
+            self.stdout.write('*** Exception:\n')
+            print(e)
+            return None
 def main():
     Rsh().cmdloop()
 
