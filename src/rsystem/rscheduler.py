@@ -9,9 +9,9 @@ import xmlrpc
 from xmlrpc.server import SimpleXMLRPCServer
 
 import time
-from . import rsys
-from . import rcam
-from . import rmotor
+from rsystem import rsys
+from rsystem import rcam
+from rsystem import rmotor
 
 class rscheduler():
 

@@ -1,5 +1,4 @@
 from rsystem import rsys as rs
-from rsystem import rmotor as rm
 # from Louis at http://stackoverflow.com/questions/510357/python-read-a-single-character-from-the-user/21659588#21659588
 
 

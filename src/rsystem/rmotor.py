@@ -3,7 +3,7 @@
 
 from xmlrpc.server import SimpleXMLRPCServer
 
-from . import rsys
+from rsystem import rsys
 
 class motor_interface():
 

@@ -5,7 +5,7 @@ SCHEDULER_PORT = 8000
 MOTOR_PORT = 8001
 CAM_PORT = 8002
 
-from . import rscheduler
+from rsystem import rscheduler
 
 def server(port):
     return "localhost:%d" % port
