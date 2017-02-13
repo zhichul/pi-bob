@@ -7,6 +7,9 @@ CAM_PORT = 8002
 
 from . import rscheduler
 
+def server(port):
+    return "localhost:%d" % port
+
 class Rsys():
     """
     System object
