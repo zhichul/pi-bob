@@ -1,2 +1,2 @@
-from rsys import rsh
+from rsystem import rsh
 rsh.main()
