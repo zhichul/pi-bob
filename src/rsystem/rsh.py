@@ -2,7 +2,7 @@
 
 import cmd
 import xmlrpc
-from . import rsys
+from rsystem import rsys
 
 class Rsh(cmd.Cmd):
     """
