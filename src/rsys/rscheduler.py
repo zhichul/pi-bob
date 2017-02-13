@@ -7,7 +7,6 @@ Thread Count: 3
 from threading import Thread
 import xmlrpc
 from xmlrpc.server import SimpleXMLRPCServer
-import subprocess
 
 import time
 from . import rsys
@@ -47,11 +46,11 @@ class rscheduler():
                 else:
                     # try to restart the module
                     self.modules[item[0]] = None
-                    mp.Process(target=start_fn).start()
+                    Thread(target=start_fn).start()
             except:
                 # try to restart the module
                 self.modules[item[0]] = None
-                mp.Process(target=start_fn).start()
+                Thread(target=start_fn).start()
 
     def routine_m(self):
         while (True):
