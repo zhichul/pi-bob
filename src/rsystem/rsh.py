@@ -25,20 +25,20 @@ class Rsh(cmd.Cmd):
         main(arg.strip(plugin).strip())
 
     def do_stats(self,arg):
-        with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.SCHEDULER_PORT) as proxy:
+        with xmlrpc.client.ServerProxy("http://127.0.0.1:%d/" % rsys.SCHEDULER_PORT) as proxy:
             print(proxy.get_stats())
 
     def do_mods(self,arg):
-        with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.SCHEDULER_PORT) as proxy:
+        with xmlrpc.client.ServerProxy("http://127.0.0.1:%d/" % rsys.SCHEDULER_PORT) as proxy:
             print(proxy.get_modules())
 
     def do_motor(self,arg):
         if (len(arg.split()) >= 2):
             args = arg.split()
             l, r = int(args[0]), int(args[1])
-            with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.MOTOR_PORT) as proxy:
+            with xmlrpc.client.ServerProxy("http://127.0.0.1:%d/" % rsys.MOTOR_PORT) as proxy:
                 print(proxy.set_speed(l,r))
-        with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.MOTOR_PORT) as proxy:
+        with xmlrpc.client.ServerProxy("http://127.0.0.1:%d/" % rsys.MOTOR_PORT) as proxy:
             print("Desired Speed:", proxy.get_speed_desired())
             print("Actual Speed", proxy.get_speed_actual())
 

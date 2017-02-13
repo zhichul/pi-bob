@@ -30,7 +30,7 @@ class motor_interface():
 
 def main():
     interface = motor_interface()
-    server = SimpleXMLRPCServer(("localhost", rsys.MOTOR_PORT))
+    server = SimpleXMLRPCServer(("127.0.0.1", rsys.MOTOR_PORT))
     server.register_function(interface.get_speed_actual,"get_speed_actual")
     server.register_function(interface.get_speed_desired,"get_speed_desired")
     server.register_function(interface.set_speed,"set_speed")

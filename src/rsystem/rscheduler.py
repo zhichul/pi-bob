@@ -65,7 +65,7 @@ class rscheduler():
     def start(self):
         Thread(target=self.routine_m).start()
         Thread(target=self.routine_s).start()
-        server = SimpleXMLRPCServer(("localhost", rsys.SCHEDULER_PORT))
+        server = SimpleXMLRPCServer(("127.0.0.1", rsys.SCHEDULER_PORT))
         server.register_function(self.get_modules,"get_modules")
         server.register_function(self.get_stats,"get_stats")
         server.register_function(self.register_module,"register_module")
@@ -80,19 +80,19 @@ class rscheduler():
         return self.modules
 
 def check_motor():
-    with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.MOTOR_PORT) as proxy:
+    with xmlrpc.client.ServerProxy("http://127.0.0.1:%d/" % rsys.MOTOR_PORT) as proxy:
         return proxy.is_alive()
 
 def check_cam():
-    with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.CAM_PORT) as proxy:
+    with xmlrpc.client.ServerProxy("http://127.0.0.1:%d/" % rsys.CAM_PORT) as proxy:
         return proxy.is_alive()
 
 def speed_desired():
-    with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.MOTOR_PORT) as proxy:
+    with xmlrpc.client.ServerProxy("http://127.0.0.1:%d/" % rsys.MOTOR_PORT) as proxy:
         return proxy.get_speed_actual()
 
 def speed_actual():
-    with xmlrpc.client.ServerProxy("http://localhost:%d/" % rsys.MOTOR_PORT) as proxy:
+    with xmlrpc.client.ServerProxy("http://127.0.0.1:%d/" % rsys.MOTOR_PORT) as proxy:
         return proxy.get_speed_desired()
 
 def main():
