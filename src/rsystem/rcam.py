@@ -1,7 +1,7 @@
 # Mid-level interface for manipulating camera
 # Thread Count: 1
 from xmlrpc.server import SimpleXMLRPCServer
-from rsystem import rsys
+from . import rsys
 
 def main():
     server = SimpleXMLRPCServer(("127.0.0.1", rsys.CAM_PORT))

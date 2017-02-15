@@ -5,7 +5,7 @@ def main():
         from rsystem import rscheduler
         rscheduler.main()
         return
-    for arg in sys.argv:
+    for arg in sys.argv[1:]:
         try:
             exec("from rsystem import %s" % arg)
             exec("%s.main()" % arg)

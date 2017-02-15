@@ -5,13 +5,13 @@ Thread Count: 3
 
 """
 from threading import Thread
-import xmlrpc
+import xmlrpc.client as client
 from xmlrpc.server import SimpleXMLRPCServer
 
 import time
-from rsystem import rsys
-from rsystem import rcam
-from rsystem import rmotor
+from . import rsys
+from . import rcam
+from . import rmotor
 
 class rscheduler():
 
@@ -80,19 +80,19 @@ class rscheduler():
         return self.modules
 
 def check_motor():
-    with xmlrpc.client.ServerProxy("http://127.0.0.1:%d/" % rsys.MOTOR_PORT) as proxy:
+    with client.ServerProxy("http://127.0.0.1:%d/" % rsys.MOTOR_PORT) as proxy:
         return proxy.is_alive()
 
 def check_cam():
-    with xmlrpc.client.ServerProxy("http://127.0.0.1:%d/" % rsys.CAM_PORT) as proxy:
+    with client.ServerProxy("http://127.0.0.1:%d/" % rsys.CAM_PORT) as proxy:
         return proxy.is_alive()
 
 def speed_desired():
-    with xmlrpc.client.ServerProxy("http://127.0.0.1:%d/" % rsys.MOTOR_PORT) as proxy:
+    with client.ServerProxy("http://127.0.0.1:%d/" % rsys.MOTOR_PORT) as proxy:
         return proxy.get_speed_actual()
 
 def speed_actual():
-    with xmlrpc.client.ServerProxy("http://127.0.0.1:%d/" % rsys.MOTOR_PORT) as proxy:
+    with client.ServerProxy("http://127.0.0.1:%d/" % rsys.MOTOR_PORT) as proxy:
         return proxy.get_speed_desired()
 
 def main():
