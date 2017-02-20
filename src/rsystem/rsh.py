@@ -39,8 +39,7 @@ class Rsh(cmd.Cmd):
             with client.ServerProxy("http://127.0.0.1:%d/" % rsys.MOTOR_PORT) as proxy:
                 print(proxy.set_speed(l,r))
         with client.ServerProxy("http://127.0.0.1:%d/" % rsys.MOTOR_PORT) as proxy:
-            print("Desired Speed:", proxy.get_speed_desired())
-            print("Actual Speed", proxy.get_speed_actual())
+            print("Speed", proxy.get_speed())
 
     def do_cam(self,arg):
         print(NotImplemented)

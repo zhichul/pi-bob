@@ -79,6 +79,8 @@ class rscheduler():
     def get_modules(self):
         return self.modules
 
+
+############ Monitor job start functions ##########
 def check_motor():
     with client.ServerProxy("http://127.0.0.1:%d/" % rsys.MOTOR_PORT) as proxy:
         return proxy.is_alive()
@@ -87,20 +89,17 @@ def check_cam():
     with client.ServerProxy("http://127.0.0.1:%d/" % rsys.CAM_PORT) as proxy:
         return proxy.is_alive()
 
-def speed_desired():
+############ Stats job start functions ##########
+def speed():
     with client.ServerProxy("http://127.0.0.1:%d/" % rsys.MOTOR_PORT) as proxy:
-        return proxy.get_speed_actual()
-
-def speed_actual():
-    with client.ServerProxy("http://127.0.0.1:%d/" % rsys.MOTOR_PORT) as proxy:
-        return proxy.get_speed_desired()
+        return proxy.get_speed()
 
 def main():
     scheduler = rscheduler()
+    # register monitor jobs and stat jobs here
     scheduler.register_module("motor", check_motor, rmotor.main)
     scheduler.register_module("cam",check_cam, rcam.main)
-    scheduler.register_stat("motor_speed_actual", speed_actual)
-    scheduler.register_stat("motor_speed_desired", speed_desired)
+    scheduler.register_stat("motor_speed", speed)
     Thread(target=scheduler.start).start()
 
 if __name__ == "__main__":
