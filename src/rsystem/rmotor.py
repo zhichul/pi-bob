@@ -23,21 +23,18 @@ class two_wheel_drive():
     host = rsys.server(rsys.MOTOR_PORT)
     wlock = Lock() # write lock used by gas, left, right and brake
 
-    def __init__(self,fric=32,gas_acc=96,turn_acc=1,brake_acc=96,turn_radius=1,turn_mode=TURN_ANGULAR_ACCELERATION):
+    def __init__(self,fric_upper=4,fric_lower=2,gas_acc=16,turn_acc=10,brake_acc=16,turn_radius=2,turn_mode=TURN_ANGULAR_ACCELERATION):
         self.speed = (0,0)  # vector (left_speed, right_speed)
         self.vec = (0,0)  # velocity, angular_speed
         self.gacc = gas_acc  # gas acceleration
-        self.tacc = turn_acc  # angular acceleration, best be a divisor of 90
+        self.tacc = turn_acc  # angular acceleration, best be a divisor of 30
         self.bacc = brake_acc  # brake acceleration
-        self.fric = fric  # friction acceleration
+        self.fric_upper = fric_upper  # friction acceleration upper bound
+        self.fric_lower = fric_lower  # friction acceleration lower bound
         self.tradius = turn_radius # how many times of the car width
-        self.k = 50
-        self.max_angle = 60
+        self.k = 100
+        self.max_angle = 30
         self.turn_mode = turn_mode
-        if self.turn_mode == TURN_ANGULAR_ACCELERATION:
-            self.max_velocity = int(255 - self.k * math.tan(abs(self.max_angle/180*math.pi)/2))
-        elif self.turn_mode == TURN_CONSTANT_RADIUS:
-            self.max_velocity = int(255 * (self.tradius + 0.5) / (self.tradius + 1))
         self.req_shutdown = False
         self.started = False
 
@@ -69,7 +66,7 @@ class two_wheel_drive():
         # *** normal case *** #
         a = self.new_angular_velocity(a,lefted,righted)
 
-        v = self.new_velocity(a,gased,braked)
+        v = self.new_velocity(v,gased,braked,a)
 
         # turning
         if self.turn_mode == TURN_CONSTANT_RADIUS:
@@ -82,11 +79,16 @@ class two_wheel_drive():
         self.refresh()
         return self.speed
 
+    def fric(self,v):
+        return int(self.fric_lower+ v / 255 * (self.fric_upper -self.fric_lower))
+
     def new_angular_velocity(self,a,lefted,righted):
         # update angular velocity
         if righted:
+            if (a > 0): a = 0
             a += -1 * self.tacc
         elif lefted:
+            if (a < 0): a = 0
             a += self.tacc
         else:
             a = 0
@@ -107,36 +109,50 @@ class two_wheel_drive():
 
         return a
 
-    def new_velocity(self,v,gased,braked):
+    def new_velocity(self,v,gased,braked,a):
         # get acceleration / deceleration
         acc = 0
-        if self.gased:
+        if gased:
             acc = self.gacc
-        elif self.braked:
+        elif braked:
             acc = -1 * self.bacc
 
         # apply friction and acceleration to velocity
-        if v > 0:
-            v += -1 * self.fric + acc
-        elif v < 0:
-            v += self.fric + acc
+        if acc == 0:
+            if v > 0:
+                v = v - self.fric(v) if v - self.fric(v) > 0 else 0
+            elif v < 0:
+                v = v + self.fric(v) if v + self.fric(v) < 0 else 0
         else:
-            if acc > 0:
-                v += -1 * self.fric + acc
-            elif acc < 0:
-                v += self.fric + acc
+            # acc != 0
+            if v > 0:
+                v += -1 * self.fric(v) + acc
+            elif v < 0:
+                v += self.fric(v) + acc
             else:
-                pass
-                # do nothing if acc = 0 and v = 0
+                if acc > 0:
+                    v += -1 * self.fric(v) + acc
+                elif acc < 0:
+                    v += self.fric(v) + acc
 
         # cut overmax
+        if a == 0:
+            max_velocity = 255
+        else:
+            max_velocity = self.max_velocity(a)
         if v == 0:
             pass
-        elif v > self.max_velocity:
-            v = self.max_velocity
-        elif v < -1 * self.max_velocity:
-            v = -1 * self.max_velocity
+        elif v > max_velocity:
+            v = max_velocity
+        elif v < -1 * max_velocity:
+            v = -1 * max_velocity
         return v
+
+    def max_velocity(self,a):
+        if self.turn_mode == TURN_ANGULAR_ACCELERATION:
+            return int(255 - self.k * math.tan(abs(a / 180 * math.pi) / 2))
+        elif self.turn_mode == TURN_CONSTANT_RADIUS:
+            return int(255 * (self.tradius) / (self.tradius + 0.5))
 
     def turn_constant_radius(self,v,a):
         rad = self.tradius
@@ -211,9 +227,9 @@ class two_wheel_drive():
     # *** routine *** #
     def update_speed(self,proxy):
         vec = self.update()
-        #proxy.set_speed(vec[0],vec[1])
-        motor1(vec[0] > 0,abs(vec[0]));
-        motor2(vec[1] > 0,abs(vec[1]));
+        proxy.set_speed(vec[0],vec[1])
+        # motor1(vec[0] > 0,abs(vec[0]));
+        # motor2(vec[1] > 0,abs(vec[1]));
 
     def start(self):
         def f():
