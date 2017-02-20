@@ -13,17 +13,31 @@ from xmlrpc.server import SimpleXMLRPCServer
 import xmlrpc.client as client
 from threading import Lock
 from threading import Thread
+import math
+import time
+
+TURN_CONSTANT_RADIUS = 0
+TURN_ANGULAR_ACCELERATION = 1
 
 class two_wheel_drive():
     host = rsys.server(rsys.MOTOR_PORT)
     wlock = Lock() # write lock used by gas, left, right and brake
 
-    def __init__(self,fric=10,gacc=60,tacc=0.8,bacc=35):
-        self.vec = (0,0) # vector (left_speed, right_speed)
-        self.gacc = gacc # gas acceleration
-        self.tacc = tacc # turn acceleration
-        self.bacc = bacc # brake acceleration
-        self.fric = fric # friction factor
+    def __init__(self,fric=32,gas_acc=96,turn_acc=1,brake_acc=96,turn_radius=1,turn_mode=TURN_ANGULAR_ACCELERATION):
+        self.speed = (0,0)  # vector (left_speed, right_speed)
+        self.vec = (0,0)  # velocity, angular_speed
+        self.gacc = gas_acc  # gas acceleration
+        self.tacc = turn_acc  # angular acceleration, best be a divisor of 90
+        self.bacc = brake_acc  # brake acceleration
+        self.fric = fric  # friction acceleration
+        self.tradius = turn_radius # how many times of the car width
+        self.k = 50
+        self.max_angle = 60
+        if self.turn_mode == TURN_ANGULAR_ACCELERATION:
+            self.max_velocity = int(255 - self.k * math.tan(abs(self.max_angle/180*math.pi)/2))
+        elif self.turn_mode == TURN_CONSTANT_RADIUS:
+            self.max_velocity = int(255 * (self.tradius + 0.5) / (self.tradius + 1))
+        self.turn_mode = turn_mode
         self.req_shutdown = False
         self.started = False
 
@@ -32,62 +46,93 @@ class two_wheel_drive():
         self.righted = False
         self.braked = False
         self.stopped = False
-    
+
     def update(self):
-        l,r = self.vec
-        # overwrite stop
+        l,r = self.speed
+        v,a = self.vec
+        #  overwrite if stop
         if (self.stopped):
-            self.vec = (0,0)
+            self.vec = (0,0,0,0)
             self.refresh()
             return self.vec
-        # normal
-        lacc = 0
-        racc = 0
-        fric = self.fric
-        if (self.gased):
-            lacc = racc = self.gacc
-        elif (self.braked):
-            lacc = racc = -1 * self.bacc
 
-        l = l + lacc
-        r = r + racc
-        
+        # *** normal case *** #
+
+        # update angular velocity
+        if self.righted:
+            a += -1 * self.tacc
+        elif self.lefted:
+            a += self.tacc
+        elif a == 0: pass
+        elif a > 0:
+            # no turning, apply friction
+            a += -1 * self.tacc
+        elif a < 0:
+            a += self.tacc
+
+        # cut overmax
+        if a == 0: pass
+        elif a > self.max_angle:
+            l = self.max_angle
+        elif a < -1 * self.max_angle:
+            l = -1 * self.max_angle
+
+        # get acceleration / deceleration
+        acc = 0
+        if self.gased: acc = self.gacc
+        elif self.braked: acc = -1 * self.bacc
+
+        # apply friction and acceleration to velocity
+        if v > 0:
+            v += -1 * self.fric + acc
+        elif v < 0:
+            v += self.fric + acc
+        else:
+            if acc > 0:
+                v += -1 * self.fric + acc
+            elif acc < 0:
+                v += self.fric + acc
+            else:
+                pass
+                # do nothing if acc = 0 and v = 0
+
+        # cut overmax
+        if v == 0: pass
+        elif v > self.max_velocity:
+            v = self.max_velocity
+        elif v < -1 * self.max_velocity:
+            v = -1 * self.max_velocity
+
         # turning
-        if (self.righted):
-            l *= self.tacc
-            r /= self.tacc
-        elif (self.lefted):
-            l /= self.tacc
-            r *= self.tacc
+        if self.turn_mode == TURN_CONSTANT_RADIUS:
+            rad = self.tradius
+            slow_side_factor = ((rad - 0.5) / rad)
+            fast_side_factor = ((rad + 0.5) / rad)
+            if a > 0:
+                l = v * slow_side_factor
+                r = v * fast_side_factor
+            elif a < 0:
+                l = v * fast_side_factor
+                r = v * slow_side_factor
+            else:
+                l = r = v # no turning
+        elif self.turn_mode == TURN_ANGULAR_ACCELERATION:
+            turn_correction = self.k * math.tan(abs(a/180*math.pi)/2)
+            if a > 0:
+                l = v - turn_correction
+                r = v + turn_correction
+            elif a < 0:
+                l = v + turn_correction
+                r = v - turn_correction
+            else:
+                l = r = v  # no turning
 
-        # friction effect
-        if l > 0:
-            l = l - fric if l - fric > 0 else 0
-        elif l < 0:
-            l = l + fric if l + fric < 0 else 0
-        if r > 0:
-            r = r - fric if r - fric > 0 else 0
-        elif l < 0:
-            r = r + fric if r + fric < 0 else 0
-        
-        # correction for straight deviation
-        if (lacc == racc and l != r):
-            l = r = l + r // 2
 
-        # correction for overmax
-        if (l > 255):
-            l = 255
-        elif (l < -255):
-            l = -255
-        if (r > 255):
-            r = 255
-        elif (r < -255):
-            r = -255
-        lacc = racc = 0
-        self.vec = (int(l),int(r))
+        self.speed = (int(l),int(r))
+        self.vec = (int(v), int(a))
         self.refresh()
-        return self.vec 
-    
+        return self.speed
+
     def refresh(self):
         self.gased = False
         self.braked = False
@@ -100,7 +145,7 @@ class two_wheel_drive():
         self.braked = False
         self.gased = True
         self.wlock.release()
-    
+
     def left(self):
         self.wlock.acquire()
         self.righted = False
@@ -112,7 +157,7 @@ class two_wheel_drive():
         self.lefted = False
         self.righted = True
         self.wlock.release()
-    
+
     def stop(self):
         self.wlock.acquire()
         self.stopped = True
