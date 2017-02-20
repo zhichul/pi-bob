@@ -33,11 +33,11 @@ class two_wheel_drive():
         self.tradius = turn_radius # how many times of the car width
         self.k = 50
         self.max_angle = 60
+        self.turn_mode = turn_mode
         if self.turn_mode == TURN_ANGULAR_ACCELERATION:
             self.max_velocity = int(255 - self.k * math.tan(abs(self.max_angle/180*math.pi)/2))
         elif self.turn_mode == TURN_CONSTANT_RADIUS:
             self.max_velocity = int(255 * (self.tradius + 0.5) / (self.tradius + 1))
-        self.turn_mode = turn_mode
         self.req_shutdown = False
         self.started = False
 
