@@ -47,40 +47,73 @@ class two_wheel_drive():
         self.braked = False
         self.stopped = False
 
+    # *** update functions *** #
     def update(self):
         l,r = self.speed
         v,a = self.vec
+        self.wlock.acquire()
+        gased = self.gased
+        lefted = self.lefted
+        righted = self.righted
+        braked = self.braked
+        stopped = self.stopped
+        self.wlock.release()
+
         #  overwrite if stop
-        if (self.stopped):
-            self.vec = (0,0,0,0)
+        if (stopped):
+            self.speed = (0,0)
+            self.vec = (0,0)
             self.refresh()
-            return self.vec
+            return self.speed
 
         # *** normal case *** #
+        a = self.new_angular_velocity(a,lefted,righted)
 
+        v = self.new_velocity(a,gased,braked)
+
+        # turning
+        if self.turn_mode == TURN_CONSTANT_RADIUS:
+            l,r = self.turn_constant_radius(v,a)
+        elif self.turn_mode == TURN_ANGULAR_ACCELERATION:
+            l,r = self.turn_angular_acceleration(v,a)
+
+        self.speed = (int(l),int(r))
+        self.vec = (int(v), int(a))
+        self.refresh()
+        return self.speed
+
+    def new_angular_velocity(self,a,lefted,righted):
         # update angular velocity
-        if self.righted:
+        if righted:
             a += -1 * self.tacc
-        elif self.lefted:
+        elif lefted:
             a += self.tacc
-        elif a == 0: pass
-        elif a > 0:
-            # no turning, apply friction
-            a += -1 * self.tacc
-        elif a < 0:
-            a += self.tacc
+        else:
+            a = 0
+        # elif a == 0:
+        #     pass
+        # elif a > 0:
+        #     # no turning, apply friction
+        #     a += -1 * self.tacc
+        # elif a < 0:
+        #     a += self.tacc
 
         # cut overmax
         if a == 0: pass
         elif a > self.max_angle:
-            l = self.max_angle
+            a = self.max_angle
         elif a < -1 * self.max_angle:
-            l = -1 * self.max_angle
+            a = -1 * self.max_angle
 
+        return a
+
+    def new_velocity(self,v,gased,braked):
         # get acceleration / deceleration
         acc = 0
-        if self.gased: acc = self.gacc
-        elif self.braked: acc = -1 * self.bacc
+        if self.gased:
+            acc = self.gacc
+        elif self.braked:
+            acc = -1 * self.bacc
 
         # apply friction and acceleration to velocity
         if v > 0:
@@ -97,78 +130,85 @@ class two_wheel_drive():
                 # do nothing if acc = 0 and v = 0
 
         # cut overmax
-        if v == 0: pass
+        if v == 0:
+            pass
         elif v > self.max_velocity:
             v = self.max_velocity
         elif v < -1 * self.max_velocity:
             v = -1 * self.max_velocity
+        return v
 
-        # turning
-        if self.turn_mode == TURN_CONSTANT_RADIUS:
-            rad = self.tradius
-            slow_side_factor = ((rad - 0.5) / rad)
-            fast_side_factor = ((rad + 0.5) / rad)
-            if a > 0:
-                l = v * slow_side_factor
-                r = v * fast_side_factor
-            elif a < 0:
-                l = v * fast_side_factor
-                r = v * slow_side_factor
-            else:
-                l = r = v # no turning
-        elif self.turn_mode == TURN_ANGULAR_ACCELERATION:
-            turn_correction = self.k * math.tan(abs(a/180*math.pi)/2)
-            if a > 0:
-                l = v - turn_correction
-                r = v + turn_correction
-            elif a < 0:
-                l = v + turn_correction
-                r = v - turn_correction
-            else:
-                l = r = v  # no turning
+    def turn_constant_radius(self,v,a):
+        rad = self.tradius
+        slow_side_factor = ((rad - 0.5) / rad)
+        fast_side_factor = ((rad + 0.5) / rad)
+        if a > 0:
+            l = v * slow_side_factor
+            r = v * fast_side_factor
+        elif a < 0:
+            l = v * fast_side_factor
+            r = v * slow_side_factor
+        else:
+            l = r = v  # no turning
+        return l,r
 
-
-        self.speed = (int(l),int(r))
-        self.vec = (int(v), int(a))
-        self.refresh()
-        return self.speed
+    def turn_angular_acceleration(self,v,a):
+        turn_correction = self.k * math.tan(abs(a / 180 * math.pi) / 2)
+        if a > 0:
+            l = v - turn_correction
+            r = v + turn_correction
+        elif a < 0:
+            l = v + turn_correction
+            r = v - turn_correction
+        else:
+            l = r = v  # no turning
+        return l,r
 
     def refresh(self):
+        self.wlock.acquire()
         self.gased = False
         self.braked = False
         self.lefted = False
         self.righted = False
         self.stopped = False
+        self.wlock.release()
 
+    # *** Elementary operations *** #
     def gas(self):
+        if self.gased: return
         self.wlock.acquire()
         self.braked = False
         self.gased = True
         self.wlock.release()
 
     def left(self):
+        if self.lefted: return
         self.wlock.acquire()
         self.righted = False
         self.lefted = True
         self.wlock.release()
 
     def right(self):
+        if self.righted: return
         self.wlock.acquire()
         self.lefted = False
         self.righted = True
         self.wlock.release()
 
     def stop(self):
+        if self.stopped: return
         self.wlock.acquire()
         self.stopped = True
         self.wlock.release()
 
     def brake(self):
+        if self.braked: return
         self.wlock.acquire()
         self.gased = False
         self.braked = True
         self.wlock.release()
 
+    # *** routine *** #
     def update_speed(self,proxy):
         vec = self.update()
         #proxy.set_speed(vec[0],vec[1])
