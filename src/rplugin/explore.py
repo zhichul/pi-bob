@@ -1,8 +1,8 @@
 from rsystem import rsys as rs
-from . import rtwd
+from rcar import rtwd
+
+
 # from Louis at http://stackoverflow.com/questions/510357/python-read-a-single-character-from-the-user/21659588#21659588
-
-
 def _find_getch():
     try:
         import termios

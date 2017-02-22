@@ -1,17 +1,17 @@
 """
 module constants
 """
+import math
 from threading import Lock
 
-import math
+from . import rabstractcar
+from rsystem import rsys
 
-from . import rsys
-from . import rcar
 TURN_CONSTANT_RADIUS = 0
 TURN_ANGULAR_ACCELERATION = 1
 
 
-class two_wheel_drive(rcar.abstract_car):
+class two_wheel_drive(rabstractcar.AbstractCar):
     """
     two_wheel_drive
 
@@ -133,7 +133,7 @@ class two_wheel_drive(rcar.abstract_car):
         assert(gased in {1,0} and braked in {1,0})
 
         # get acceleration / deceleration
-        acc = gased * self.gacc - braked * braked
+        acc = gased * self.gacc - braked * self.bacc
 
         # directions of v, acc, and friction
         v_dir = v / abs(v) if v != 0 else 0
@@ -142,7 +142,7 @@ class two_wheel_drive(rcar.abstract_car):
         assert((v_dir in {-1,0,1}) and (acc_dir in {-1,0,1}) and (fric_dir in {-1, 0, 1}))
 
         # apply friction and acceleration to velocity
-        v_new = v + acc_dir * acc + fric_dir * self.fric(v)
+        v_new = v + acc + fric_dir * self.fric(v)
         if v * v_new < 0: v_new = 0  # crossing 0, force 0
 
         # if result exceeded max/min cutoff at max/min
