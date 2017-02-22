@@ -30,6 +30,13 @@ class two_wheel_drive():
     """
     host = rsys.server(rsys.MOTOR_PORT)  # address of server hosting motor communication interface
     wlock = Lock()  # Lock used by gas(), left(), right(), brake(), update(), and refresh().
+    req_shutdown = False  # flag for shutting down the thread running from start()
+    started = False  # flag for indicating there is already a thread running from start()
+    gased = False  # signal for gas
+    lefted = False  # signal for left
+    righted = False  # signal for right
+    braked = False  # signal for brake
+    stopped = False  # signal for stop
 
     def __init__(self, fric_upper=4, fric_lower=2, gas_acc=16, turn_acc=10, brake_acc=16, turn_radius=2,
                  turn_mode=TURN_CONSTANT_RADIUS):
@@ -55,15 +62,6 @@ class two_wheel_drive():
         self.k = 100  # constant used in TURN_ANGULAR_ACCELERATION mode
         self.max_angular = 30  # constant used for turning
         self.turn_mode = turn_mode  # turning mode
-
-        self.req_shutdown = False  # flag for shutting down the thread running from start()
-        self.started = False  # flag for indicating there is already a thread running from start()
-
-        self.gased = False  # signal for gas
-        self.lefted = False  # signal for left
-        self.righted = False  # signal for right
-        self.braked = False  # signal for brake
-        self.stopped = False  # signal for stop
 
     # *** update functions *** #
     def update(self):
@@ -122,24 +120,15 @@ class two_wheel_drive():
         :param righted: True iff signaled right
         :return: new angular velocity
         """
+        assert (lefted in {0,1} and (righted in {0,1}))
+        acc_dir = -1 * lefted + 1 * righted
+        if acc_dir * a < 0: a = 0 # change in turning
         # if signaled left or right, apply the forces
-        if righted:
-            if (a > 0): a = 0
-            a += -1 * self.tacc
-        elif lefted:
-            if (a < 0): a = 0
-            a += self.tacc
-        else:
-            a = 0
+        a = a * abs(acc_dir) + acc_dir * self.tacc
 
         # if result exceeded max/min, cutoff at max/min
-        if a == 0:
-            pass
-        elif a > self.max_angular:
-            a = self.max_angular
-        elif a < -1 * self.max_angular:
-            a = -1 * self.max_angular
-
+        if a > self.max_angular: a = self.max_angular
+        elif a < -1 * self.max_angular: a = -1 * self.max_angular
         return a
 
     def new_velocity(self, v, gased, braked, a):
@@ -151,43 +140,26 @@ class two_wheel_drive():
         :param a: angular velocity
         :return: new velocity
         """
+        assert(gased in {1,0} and braked in {1,0})
+
         # get acceleration / deceleration
-        acc = 0
-        if gased:
-            acc = self.gacc
-        elif braked:
-            acc = -1 * self.bacc
+        acc = gased * self.gacc - braked * braked
+
+        # directions of v, acc, and friction
+        v_dir = v / abs(v) if v != 0 else 0
+        acc_dir = acc / abs(acc) if acc != 0 else 0
+        fric_dir = -1 * v_dir if v_dir else -1 * acc_dir  # if v = 0, use opposite of acc_dir
+        assert((v_dir in {-1,0,1}) and (acc_dir in {-1,0,1}) and (fric_dir in {-1, 0, 1}))
 
         # apply friction and acceleration to velocity
-        if acc == 0:
-            if v > 0:
-                v = v - self.fric(v) if v - self.fric(v) > 0 else 0
-            elif v < 0:
-                v = v + self.fric(v) if v + self.fric(v) < 0 else 0
-        else:
-            # acc != 0
-            if v > 0:
-                v += -1 * self.fric(v) + acc
-            elif v < 0:
-                v += self.fric(v) + acc
-            else:
-                if acc > 0:
-                    v += -1 * self.fric(v) + acc
-                elif acc < 0:
-                    v += self.fric(v) + acc
+        v_new = v + acc_dir * acc + fric_dir * self.fric(v)
+        if v * v_new < 0: v_new = 0  # crossing 0, force 0
 
         # if result exceeded max/min cutoff at max/min
-        if a == 0:
-            max_velocity = 255
-        else:
-            max_velocity = self.max_velocity(a)
-        if v == 0:
-            pass
-        elif v > max_velocity:
-            v = max_velocity
-        elif v < -1 * max_velocity:
-            v = -1 * max_velocity
-        return v
+        v_max = self.max_velocity(a) if a else 255
+        if v_new > v_max: v_new = v_max
+        elif v_new < -1 * v_max: v_new = -1 * v_max
+        return v_new
 
     def max_velocity(self, a):
         """
