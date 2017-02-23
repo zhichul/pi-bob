@@ -83,5 +83,5 @@ class Car(rabstractcar.AbstractCar):
         else:
             l = r = velocity_new
         self.speed = velocity_new
-        return l,r
+        return int(l),int(r)
 
