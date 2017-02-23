@@ -1,58 +1,51 @@
-from rsystem import rsys as rs
 from rcar import rstandardcar
+import pygame
+import time
 
 
-# from Louis at http://stackoverflow.com/questions/510357/python-read-a-single-character-from-the-user/21659588#21659588
-def _find_getch():
-    try:
-        import termios
-    except ImportError:
-        # Non-POSIX. Return msvcrt's (Windows') getch.
-        import msvcrt
-        return msvcrt.getch
-
-    # POSIX system. Create and return a getch that manipulates the tty.
-    import sys, tty
-    def _getch():
-        fd = sys.stdin.fileno()
-        old_settings = termios.tcgetattr(fd)
-        try:
-            tty.setraw(fd)
-            ch = sys.stdin.read(1)
-        finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-        return ch
-
-    return _getch
-
-def main(arg):
-    car = rstandardcar.Car()
-    car.start()
-    getch = _find_getch()
-    while (True):
-        ch = getch()
-        if (ch == "w"):
+def handle(car,keys):
+    for key in keys:
+        if key == pygame.K_ESCAPE:
+            return False
+        if key == pygame.K_w:
             car.w()
             # print("Gas")
-        elif (ch == "s"):
+        elif key == pygame.K_s:
             car.s()
             # print("Brake")
-        elif (ch == "a"):
+        elif key == pygame.K_a:
             car.a()
             # print("Left")
-        elif (ch == "d"):
+        elif key == pygame.K_d:
             car.d()
             # print("Right")
-        elif (ord(ch) == 3):
-            break;
-        elif (ch == "x"):
+        elif key == pygame.K_x:
             car.stop()
             # print("Stop")
-        elif (ch == "p"):
-            print("Duh...Need to implement photo capture!")
-        else:
-            pass
+        elif key == pygame.K_p:
+            print("Need to implement photo capture!")
+    return True
+
+
+def main(arg):
+    period = 50 # ms
+    period_s = period/1000
+
+    pygame.init()
+    pygame.key.set_repeat(period, period)
+
+    car = rstandardcar.Car()
+    car.start()
+    keys = set()
+    while handle(car,keys):
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                keys.add(event.key)
+            if event.type == pygame.KEYUP:
+                keys.remove(event.key)
+        time.sleep(period_s)
     car.shutdown()
+    pygame.quit()
     print("Thank you for using explore. Bye!")
 
 if __name__ == "__main__":
