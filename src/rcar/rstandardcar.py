@@ -78,8 +78,8 @@ class Car(rabstractcar.AbstractCar):
             l = self.fast_side_velocity(velocity_new,radius)
             r = self.slow_side_velocity(velocity_new,radius)
         elif y * velocity_dir== -1:
-            l = self.fast_side_velocity(velocity_new, radius)
-            r = self.slow_side_velocity(velocity_new, radius)
+            l = self.slow_side_velocity(velocity_new, radius)
+            r = self.fast_side_velocity(velocity_new, radius)
         else:
             l = r = velocity_new
         self.speed = velocity_new
