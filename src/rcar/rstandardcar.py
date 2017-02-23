@@ -61,7 +61,7 @@ class Car(rabstractcar.AbstractCar):
 
         # apply friction and acceleration to velocity
         velocity_new = velocity + acc + friction_dir * self.friction(velocity)
-        if velocity * velocity_new < 0: v_new = 0  # crossing 0, force 0
+        if velocity * velocity_new < 0: velocity_new = 0  # crossing 0, force 0
 
         # turning radius
         radius = self.radius(velocity)
@@ -74,10 +74,10 @@ class Car(rabstractcar.AbstractCar):
             velocity_new = -1 * v_max
 
         # applying turning
-        if y == 1:
-            l = self.slow_side_velocity(velocity_new,radius)
-            r = self.fast_side_velocity(velocity_new,radius)
-        elif y == -1:
+        if y * velocity_dir == 1:
+            l = self.fast_side_velocity(velocity_new,radius)
+            r = self.slow_side_velocity(velocity_new,radius)
+        elif y * velocity_dir== -1:
             l = self.fast_side_velocity(velocity_new, radius)
             r = self.slow_side_velocity(velocity_new, radius)
         else:
