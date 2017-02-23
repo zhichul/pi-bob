@@ -22,7 +22,7 @@ class Car(rabstractcar.AbstractCar):
         :param velocity: velocity
         :return: the friction
         """
-        return int(self.fric_min + velocity / 255 * (self.fric_max - self.fric_min))
+        return int(self.fric_min + abs(velocity) / 255 * (self.fric_max - self.fric_min))
 
     def radius(self, velocity):
         return 1.5 # constant turning radius for now
