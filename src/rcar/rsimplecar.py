@@ -27,7 +27,7 @@ class SimpleCar(rabstractcar.AbstractCar):
                          <------------------------------- radius * width ------------------------->
         """
         assert (speed > 0,radius >= 0.5)
-        super.__init__(self,freq)
+        super(SimpleCar,self).__init__(freq)
         self.regular_speed = min(int(speed),255)
         self.slow_speed = int(speed - 0.5 * speed / radius)
         self.fast_speed = int(speed + 0.5 * speed / radius)
@@ -39,11 +39,9 @@ class SimpleCar(rabstractcar.AbstractCar):
         elif y == 0:
             return x * self.regular_speed, x * self.regular_speed
         elif y == -1:
-            return ((x * self.fast_speed, x * self.slow_speed) if x > 0
-                    else (x * self.slow_speed, x * self.fast_speed))
+            return x * self.fast_speed, x * self.slow_speed
         elif y == 1:
-            return ((x * self.slow_speed, x * self.fast_speed) if x > 0
-                    else (x * self.fast_speed, x * self.slow_speed))
+            return x * self.slow_speed, x * self.fast_speed
         else:
             assert False
 
