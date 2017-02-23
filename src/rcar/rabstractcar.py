@@ -9,7 +9,7 @@ class AbstractCar():
     host = rsys.server(rsys.MOTOR_PORT)  # address of server hosting motor communication interface
     req_shutdown = False  # flag for shutting down the thread running from start()
     started = False  # flag for indicating there is already a thread running from start()
-    com_freq = 0.1
+    stopped = False # Car stopped
     x = 0 # fwd bckwd direction signal {-1, 0, 1}
     y = 0 # left right signal {-1, 0, 1} 1 for left
 
@@ -28,13 +28,16 @@ class AbstractCar():
     def d(self):  # right
         self.y = -1
 
+    def stop(self):
+        self.stopped = True
+
     def signals(self): # get and clear signals
-        res = (self.x,self.y)
-        self.x,self.y = (0,0)
+        res = (self.x,self.y,self.stopped)
+        self.x,self.y,self.stopped= (0,0,0)
         return res
 
     def new_speed(self):
-        return 0,0
+        pass
 
     def update_speed(self,proxy):
         l,r = self.new_speed()

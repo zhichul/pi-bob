@@ -33,7 +33,7 @@ class SimpleCar(rabstractcar.AbstractCar):
         self.fast_speed = int(speed + 0.5 * speed / radius)
 
     def new_speed(self):
-        x,y = self.signals()
+        x,y,stopped = self.signals()
         if x == 0:
             return (0,0)
         elif y == 0:

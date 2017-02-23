@@ -1,11 +1,13 @@
-"""
-module constants
-"""
+# <Deprecated>
 import math
 from threading import Lock
 
 from . import rabstractcar
 from rsystem import rsys
+
+"""
+module constants
+"""
 
 TURN_CONSTANT_RADIUS = 0
 TURN_ANGULAR_ACCELERATION = 1

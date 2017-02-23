@@ -1,5 +1,5 @@
 from rsystem import rsys as rs
-from rcar import rtwd
+from rcar import rstandardcar
 
 
 # from Louis at http://stackoverflow.com/questions/510357/python-read-a-single-character-from-the-user/21659588#21659588
@@ -26,28 +26,28 @@ def _find_getch():
     return _getch
 
 def main(arg):
-    car = rtwd.two_wheel_drive()
+    car = rstandardcar.Car()
     car.start()
     getch = _find_getch()
     while (True):
         ch = getch()
         if (ch == "w"):
-            car.gas()
-            print("Gas")
+            car.w()
+            # print("Gas")
         elif (ch == "s"):
-            car.brake()
-            print("Brake")
+            car.s()
+            # print("Brake")
         elif (ch == "a"):
-            car.left()
-            print("Left")
+            car.a()
+            # print("Left")
         elif (ch == "d"):
-            car.right()
-            print("Right")
+            car.d()
+            # print("Right")
         elif (ord(ch) == 3):
             break;
         elif (ch == "x"):
             car.stop()
-            print("Stop")
+            # print("Stop")
         elif (ch == "p"):
             print("Duh...Need to implement photo capture!")
         else:
