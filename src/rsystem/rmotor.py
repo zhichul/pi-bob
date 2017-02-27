@@ -43,7 +43,7 @@ def main():
     :return: never returns unless killed
     """
     interface = motor_interface()
-    server = SimpleXMLRPCServer(("127.0.0.1", rsys.MOTOR_PORT))
+    server = SimpleXMLRPCServer(("127.0.0.1", rsys.MOTOR_PORT),logRequests=False)
     server.register_function(interface.iget_speed, "get_speed")
     server.register_function(interface.iset_speed, "set_speed")
     server.register_function(lambda: True, "is_alive")
