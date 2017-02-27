@@ -37,7 +37,7 @@ class CamService(Service):
             for i in range(self.buffer_pool.qsize()):
                 buffer = self.buffer_pool.get()
                 self.buffer_pool.put(buffer)
-                if buffer.lock.acquire(blocking=False):  # found spare buffer
+                if buffer.lock.wlock(blocking=False):  # found spare buffer
                     self.camera.capture_sequence(buffer.get_buffer(), use_video_port=True)
                     buffer.lock.release()
                     Thread(self.registry.broadcast(self.name(),buffer)).start()
@@ -55,11 +55,64 @@ class CamService(Service):
     def buffer_count(self):
         return self.buffer_pool.qsize()
 
+
+class RWLock(object):
+
+    readers = 0
+    writers = 0
+    lock = Lock()
+
+    def rlock(self,blocking=True):
+        assert not (self.readers > 0  and self.writers > 0)
+        if not blocking:
+            with self.lock:
+                if self.writers > 0: return False
+                else:
+                    self.readers += 1
+                    return True
+        else:
+            while True:
+                with self.lock:
+                    if self.writers > 0:
+                        continue
+                    else:
+                        self.readers += 1
+                        return True
+
+    def wlock(self,blocking=True):
+        assert not (self.readers > 0 and self.writers > 0)
+        if not blocking:
+            with self.lock:
+                if self.readers > 0 or self.writers > 0:
+                    return False
+                else:
+                    self.writers += 1
+                    return True
+        else:
+            while True:
+                with self.lock:
+                    if self.readers > 0 or self.writers > 0:
+                        continue
+                    else:
+                        self.writers += 1
+                        return True
+
+    def release(self):
+        assert not (self.readers > 0 and self.writers > 0)
+        with self.lock:
+            if self.readers > 0:
+                self.readers -= 1
+            elif self.writers > 0:
+                self.writers -= 1
+            else:
+                assert False
+
+
 class BurstBuffer(object):
 
     def __init__(self,n):
         self.buffer = [io.BytesIO() for i in range(n)]
-        self.lock = Lock()
+        self.lock = RWLock()
 
     def get_buffer(self):
         return self.buffer
