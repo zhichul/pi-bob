@@ -3,7 +3,7 @@ import io
 from queue import Queue
 from picamera import PiCamera
 from threading import Thread
-from threading import Lock
+from threading import Condition
 
 from .service import Service
 
@@ -13,7 +13,6 @@ class CamService(Service):
     def __init__(self,fps=30,burst_size=5):
         self.fps = fps
         self.period = 1/fps
-        self.lock = Lock()
         self.capturing = False
         self.camera = PiCamera()
         self.burst_size = burst_size
@@ -37,9 +36,9 @@ class CamService(Service):
             for i in range(self.buffer_pool.qsize()):
                 buffer = self.buffer_pool.get()
                 self.buffer_pool.put(buffer)
-                if buffer.lock.wlock(blocking=False):  # found spare buffer
+                if buffer.lock.wlock_acquire(blocking=False):  # found spare buffer
                     self.camera.capture_sequence(buffer.get_buffer(), use_video_port=True)
-                    buffer.lock.release()
+                    buffer.lock.wlock_release()
                     Thread(self.registry.broadcast(self.name(),buffer)).start()
                     found_empty = True
                     break
@@ -57,55 +56,35 @@ class CamService(Service):
 
 
 class RWLock(object):
-
     readers = 0
-    writers = 0
-    lock = Lock()
+    lock = Condition()
+    writer = False
 
-    def rlock(self,blocking=True):
-        assert not (self.readers > 0  and self.writers > 0)
-        if not blocking:
-            with self.lock:
-                if self.writers > 0: return False
-                else:
-                    self.readers += 1
-                    return True
-        else:
-            while True:
-                with self.lock:
-                    if self.writers > 0:
-                        continue
-                    else:
-                        self.readers += 1
-                        return True
-
-    def wlock(self,blocking=True):
-        assert not (self.readers > 0 and self.writers > 0)
-        if not blocking:
-            with self.lock:
-                if self.readers > 0 or self.writers > 0:
-                    return False
-                else:
-                    self.writers += 1
-                    return True
-        else:
-            while True:
-                with self.lock:
-                    if self.readers > 0 or self.writers > 0:
-                        continue
-                    else:
-                        self.writers += 1
-                        return True
-
-    def release(self):
-        assert not (self.readers > 0 and self.writers > 0)
+    def rlock_acquire(self,blocking=True):
         with self.lock:
-            if self.readers > 0:
-                self.readers -= 1
-            elif self.writers > 0:
-                self.writers -= 1
-            else:
-                assert False
+            if self.writer and not blocking:
+                return False
+            while self.writer:
+                self.lock.wait()
+            self.readers += 1
+            return True
+
+    def wlock_acquire(self,blocking=True):
+        with self.lock:
+            if (self.writer or self.readers > 0) and not blocking:
+                return False
+            while self.writer or self.readers > 0:
+                self.lock.wait()
+            self.writer = True
+            return True
+
+    def rlock_release(self):
+        with self.lock:
+            self.readers -= 1
+
+    def wlock_release(self):
+        with self.lock:
+            self.writer = False
 
 
 class BurstBuffer(object):
