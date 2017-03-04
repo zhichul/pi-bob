@@ -10,9 +10,9 @@ from .service import Service
 
 class CamService(Service):
 
-    def __init__(self,fps=30,burst_size=5):
-        self.fps = fps
-        self.period = 1/fps
+    def __init__(self,bps=10,burst_size=3):
+        self.bps = bps
+        self.period = 1/bps
         self.capturing = False
         self.camera = PiCamera()
         self.burst_size = burst_size
@@ -36,24 +36,26 @@ class CamService(Service):
             for i in range(self.buffer_pool.qsize()):
                 buffer = self.buffer_pool.get()
                 self.buffer_pool.put(buffer)
-                if buffer.lock.wlock_acquire(blocking=False):  # found spare buffer
-                    self.camera.capture_sequence(buffer.get_buffer(), use_video_port=True)
-                    buffer.lock.wlock_release()
+                if buffer.wlock_acquire(blocking=False):  # found spare buffer
+                    self.camera.capture_sequence(buffer(), use_video_port=True)
                     Thread(self.registry.broadcast(self.name(),buffer)).start()
+                    buffer.wlock_release()
                     found_empty = True
                     break
 
             # if every buffer is currently in use, create a new buffer
             if not found_empty:
-                new_buffer = BurstBuffer(self.burst_size)
-                self.buffer_pool.put(new_buffer)
-                self.camera.capture_sequence(new_buffer.get_buffer(), use_video_port=True)
-                Thread(self.registry.broadcast(self.name(), new_buffer)).start()
+                buffer = BurstBuffer(self.burst_size)
+                self.camera.capture_sequence(buffer(), use_video_port=True)
+                Thread(self.registry.broadcast(self.name(), buffer)).start()
+                self.buffer_pool.put(buffer)
                 continue
 
     def buffer_count(self):
         return self.buffer_pool.qsize()
 
+    def name(self):
+        return "CamService"
 
 class RWLock(object):
     readers = 0
@@ -93,5 +95,17 @@ class BurstBuffer(object):
         self.buffer = [io.BytesIO() for i in range(n)]
         self.lock = RWLock()
 
-    def get_buffer(self):
+    def __call__(self, *args, **kwargs):
         return self.buffer
+
+    def wlock_acquire(self,blocking=True):
+        return self.lock.wlock_acquire(blocking)
+
+    def rlock_acquire(self,blocking=True):
+        return self.lock.rlock_acquire(blocking)
+
+    def wlock_release(self):
+        return self.lock.wlock_release()
+
+    def rlock_release(self):
+        return self.lock.rlock_release()
