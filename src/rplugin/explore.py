@@ -1,11 +1,14 @@
-from rcar import rstandardcar
+from rcar import rsimplecar
 import pygame
 import time
-
+import os
+import sys
+from pistreaming import server
+from threading import Thread
 
 def handle(car,keys):
     for key in keys:
-        if key == pygame.K_ESCAPE:
+        if  key == pygame.K_ESCAPE:
             return False
         if key == pygame.K_w:
             car.w()
@@ -28,17 +31,22 @@ def handle(car,keys):
 
 
 def main(arg):
+    argv = list(sys.argv)
+    argv.pop(0)
+    Thread(target=server.main,args=[argv]).start()
+    os.environ["SDL_VIDEODRIVER"] = 'dummy'
     period = 50 # ms
     period_s = period/1000
 
     pygame.init()
     pygame.key.set_repeat(period, period)
-
-    car = rstandardcar.Car()
+    pygame.display.set_mode((1,1))
+    car = rsimplecar.SimpleCar(255,2)
     car.start()
     keys = set()
     while handle(car,keys):
         for event in pygame.event.get():
+            print("event")
             if event.type == pygame.KEYDOWN:
                 keys.add(event.key)
             if event.type == pygame.KEYUP:
@@ -46,6 +54,7 @@ def main(arg):
         time.sleep(period_s)
     car.shutdown()
     pygame.quit()
+    server.running = False
     print("Thank you for using explore. Bye!")
 
 if __name__ == "__main__":
