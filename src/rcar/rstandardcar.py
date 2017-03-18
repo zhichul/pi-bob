@@ -2,7 +2,7 @@ from . import rabstractcar
 
 class Car(rabstractcar.AbstractCar):
 
-    def __init__(self, fric_min=2, fric_max=4, acceleration=16, freq=10):
+    def __init__(self, fric_min=2, fric_max=4, acceleration=16, freq=10,radius=10,max_speed=200):
         """
         Initializes friction and acceleration model
         :param fric_min: upper bound for friction [0,255]
@@ -14,6 +14,8 @@ class Car(rabstractcar.AbstractCar):
         self.fric_max = fric_max  # friction acceleration upper bound
         self.fric_min = fric_min  # friction acceleration lower bound
         self.speed = 0
+        self.r = radius
+        self.max_speed = max_speed
 
     def friction(self,velocity):
         """
@@ -25,7 +27,7 @@ class Car(rabstractcar.AbstractCar):
         return int(self.fric_min + abs(velocity) / 255 * (self.fric_max - self.fric_min))
 
     def radius(self, velocity):
-        return 1.5 # constant turning radius for now
+        return self.r # constant turning radius for now
 
     def slow_side_velocity(self,velocity,radius):
         return velocity * (1-0.5/radius)
@@ -67,7 +69,7 @@ class Car(rabstractcar.AbstractCar):
         radius = self.radius(velocity)
 
         # if result exceeded max/min cutoff at max/min
-        v_max = self.max_velocity(radius) if y else 255
+        v_max = min(self.max_velocity(radius),self.max_speed) if y else self.max_speed
         if velocity_new > v_max:
             velocity_new = v_max
         elif velocity_new < -1 * v_max:
@@ -83,5 +85,5 @@ class Car(rabstractcar.AbstractCar):
         else:
             l = r = velocity_new
         self.speed = velocity_new
-        return int(l),int(r)
+        return int(r),int(l)
 

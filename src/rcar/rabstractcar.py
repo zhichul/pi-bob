@@ -3,7 +3,7 @@ from threading import Thread, Lock
 import time
 import xmlrpc.client as client
 from rsystem import rsys
-
+from gopigo import *
 
 class AbstractCar():
     host = rsys.server(rsys.MOTOR_PORT)  # address of server hosting motor communication interface
@@ -33,7 +33,7 @@ class AbstractCar():
 
     def signals(self): # get and clear signals
         res = (self.x,self.y,self.stopped)
-        self.x,self.y,self.stopped= (0,0,0)
+        self.x,self.y,self.stopped= (0,0,False)
         return res
 
     def new_speed(self):
@@ -41,7 +41,9 @@ class AbstractCar():
 
     def update_speed(self,proxy):
         l,r = self.new_speed()
-        proxy.set_speed(l,r)
+        #proxy.set_speed(l,r)
+        motor1(l > 0, abs(l))
+        motor2(r > 0, abs(r))
 
     def start(self):
         """

@@ -26,7 +26,8 @@ class SimpleCar(rabstractcar.AbstractCar):
         <--------------- width --------------->
                          <------------------------------- radius * width ------------------------->
         """
-        assert (speed > 0,radius >= 0.5)
+        assert speed > 0
+        assert radius >= 0.5
         super(SimpleCar,self).__init__(freq)
         self.regular_speed = min(int(speed),255)
         self.slow_speed = int(speed - 0.5 * speed / radius)
