@@ -18,7 +18,6 @@ class N21Unit(object):
 		self.upstream = []
 		self.downstream = []
 		self.o = None
-		self.sig = None
 
 	# methods to be overriden #
 	def verify(self):
@@ -59,15 +58,18 @@ class N21Unit(object):
 	def __str__(self):
 		return self.__repr__()
 
+def randomReal(x):
+	return random.random() * x
 
 class LinearUnit(N21Unit):
 	
 	"""
 	An n input 1 output (real valued) unit
 	"""
-	def __init__(self,ref):
+	def __init__(self,ref,factor=1):
 		super(LinearUnit,self).__init__(ref)
-		self.weight = [random.random()/20]
+		self.factor = 0.05*factor
+		self.weight = [randomReal(self.factor)]
 	
 	def verify(self):
 		if __debug__:
@@ -77,7 +79,7 @@ class LinearUnit(N21Unit):
 	def addUpstream(self,unit):
 		assert isinstance(unit,N21Unit)
 		self.upstream.append(unit)
-		self.weight.append(random.random())
+		self.weight.append(randomReal(self.factor))
 
 	def addDownstream(self,unit):
 		assert isinstance(unit,N21Unit)
@@ -131,6 +133,13 @@ class InputUnit(N21Unit):
 	"""
 	An input unit with no fan-in only fan-out
 	"""
+	def __init__(self,ref,factor=1):
+		super(InputUnit,self).__init__(ref)
+		self.factor = 1
+
+	def update(self,v):
+		self.o = self.factor * v
+
 	def __repr__(self):
 		return 'InputUnit("%s")' % self.ref
 
@@ -146,7 +155,10 @@ class Layer(object):
 		self.unitClassName = unitClass
 		unitClass = parseClass(unitClass)
 		self.ref = ref
-		self.units = [unitClass(ref+"U%d"%i)for i in range(size)]
+		self.units = [unitClass(ref+"U%d"%(i),factor=1/size) for i in range(size)]
+		for unit in self.units:
+			unit.delta = 0
+			unit.moment = 0
 
 	def update(self):
 		for unit in self.units:
@@ -175,18 +187,19 @@ class InputLayer(Layer):
 	def update(self,v):
 		assert len(v) == len(self.units)
 		for i, unit in enumerate(self.units):
-			unit.o = v[i]
+			unit.update(v[i])
 
 
 class Network(object):
 
-	def __init__(self,ref,learningRate,sizes,hiddenClass="SigmoidUnit",outputClass="SigmoidUnit"):
+	def __init__(self,ref,learningRate,sizes,moment=0,hiddenClass="SigmoidUnit",outputClass="SigmoidUnit"):
 		assert len(sizes) >= 2
 		layerCount = len(sizes)
 		self.hiddenClass = hiddenClass
 		self.outputClass = outputClass
 		self.ref = ref
 		self.rate = learningRate
+		self.alpha = moment
 		self.layers = []
 		self.layers.append(InputLayer("L0",sizes[0]))
 		self.layers += [Layer("L%d"%i,sizes[i],unitClass=hiddenClass) for i in range(1,layerCount-1)]
@@ -203,25 +216,43 @@ class Network(object):
 
 	def backProp(self,x,t):
 		# compute delta for output layer
+		# print("==> BackProp in progress...\n\tBefore BackProp: %s %s" % (t,self.o))
 		for i, unit in enumerate(self.layers[-1].units):
+			unit.moment = unit.delta
 			unit.delta = unit.o*(1-unit.o)*(t[i]-unit.o)
 		# compute delta for hidden layers if any
 		for i in range(1,len(self.layers)-1):
 			layer = self.layers[i]
 			for index,unit in enumerate(layer.units):
-				unit.delta = unit.o * (1-unit.o) * np.sum([downstreamUnit.weight[index] * downstreamUnit.delta for downstreamUnit in unit.downstream])
+				unit.moment = unit.delta
+				unit.delta = unit.o * (1-unit.o) * np.sum([downstreamUnit.weight[index+1] * downstreamUnit.delta for downstreamUnit in unit.downstream])
 		#update weights
-		for i in range(1,len(self.layers)-1):
+		for i in range(1,len(self.layers)):
 			layer = self.layers[i]
 			for unit in layer.units:
-				for i in range(1,len(unit.weight)):
-					unit.weight[i] += unit.delta * self.rate * unit.upstream[i-1].o
+				unit.weight[0] += unit.delta * self.rate
+				for j in range(1,len(unit.weight)):
+					unit.weight[j] += unit.delta * self.rate * unit.upstream[j-1].o + self.alpha * unit.moment
+		# print("\tOutput Layer Weights")
+		# print("\t\t",self.layers[-1].units[0].weight[0:3])
+		# print("\t\t",self.layers[-1].units[1].weight[0:3])
+		# print("\t\t",self.layers[-1].units[2].weight[0:3])
+		# print("\tOutput Layer Deltas", [unit.delta for unit in self.layers[-1].units])
+		# print("\tHidden Layer Weights")
+		# print("\t\t",self.layers[1].units[0].weight[0:3])
+		# print("\t\t",self.layers[1].units[1].weight[0:3])
+		# print("\t\t",self.layers[1].units[2].weight[0:3])
+		# print("\tHidden Layer Delta sample", random.choice([unit.delta for unit in self.layers[1].units]))
+		# self.update(x)
+		# print("\tAfter BackProp: %s %s" % (t,self.o))
+		# input("")
 
 	def train(self,trainingSet,testSet):
 		error = self.error(testSet)
 		lasterror = error
 		i = 0
 		while (error > 0):
+			random.shuffle(trainingSet)
 			print("Iter[%d] - Error=%.10f, dE=%.10f. ErrorRate=%.10f" % (i, error, error-lasterror, self.errorRate(testSet)))
 			for x,t in trainingSet:
 				self.update(x)
@@ -239,10 +270,12 @@ class Network(object):
 
 	def errorRate(self,testSet):
 		error = 0
-		for instance,t in testSet:
-			self.update(instance)
-			if self.o.index(max(self.o)) != t.index(max(t)):
-				error += 1
+		with open("out","wt") as f:
+			for instance,t in testSet:
+				self.update(instance)
+				if self.o.index(max(self.o)) != t.index(max(t)):
+					error += 1
+				f.write(str(t)+"|"+str(self.o)+"\n")
 		return error/len(testSet)
 
 
@@ -326,7 +359,7 @@ def testUnits():
 		S.update()
 		assert O.o == np.inner(weight,[1] + inputVector)
 		assert (T.o == 1) if O.o > 0 else (T.o == -1)
-		assert S.o == 1/(1+np.exp(-1*O.o))
+		assert S.o == 1/(1+np.exp(-1*O.o)).layer
 
 
 	print("Test on Linear/Threashold/SigmoidUnits passed.")
@@ -350,16 +383,21 @@ def main():
 
 	assert len(sys.argv) > 1
 	assert os.path.isdir(sys.argv[1])
+	n,m = 16,12
 	data = parseData(sys.argv[1])
-	ANN = Network("ANN",0.25,(64*48,4,3))
-	D = random.sample(data,len(data)//2)
-	T = [x for x in data if x in D]
-	ANN.train(D,T)
+	ANN = Network("ANN",0.05,(m*n,60,3))
+	D = []
+	for key in data:
+		D.extend(random.sample(data[key],len(data[key])))
+	T = ([x for x in data['r'] if x not in D] + 
+		[x for x in data['l'] if x not in D] +
+		[x for x in data['s'] if x not in D])
+	ANN.train(D,D)
 
 
 def parseData(path):
 
-	res = []
+	res = {"l":[],"r":[],"s":[]}
 	for file in os.listdir(path):
 		img = cv.imread(os.path.join(path,file),0)
 		decision = file.split("-")[0]
@@ -372,10 +410,10 @@ def parseData(path):
 			t[1] = 1
 		else:
 			print("Unidentified training example: %s" % file)
-		res.append((tuple(np.multiply(1/255000,np.ndarray.flatten(img)).tolist()),tuple(t)))
+		if decision[0] in res:
+			res[decision[0]].append((tuple(np.multiply(1/255,np.ndarray.flatten(img)).tolist()),tuple(t)))
 	return res
 
-	ANN = Network("ANN",0.05,(64*48,4,3))
 if __name__ == "__main__":
 	# testUnits()
 	# testNetwork()
