@@ -2,7 +2,6 @@ import random
 import numpy as np
 
 #for testing
-import cv2 as cv
 import os
 import sys
 import copy
@@ -192,11 +191,13 @@ class InputLayer(Layer):
 
 class Network(object):
 
-	def __init__(self,ref,learningRate,sizes,moment=0,hiddenClass="SigmoidUnit",outputClass="SigmoidUnit"):
+	def __init__(self,ref,learningRate,sizes,moment=0,hiddenClass="SigmoidUnit",outputClass="SigmoidUnit",outfile="nn.save"):
 		assert len(sizes) >= 2
 		layerCount = len(sizes)
+		self.sizes = sizes
 		self.hiddenClass = hiddenClass
 		self.outputClass = outputClass
+		self.outfile = outfile
 		self.ref = ref
 		self.rate = learningRate
 		self.alpha = moment
@@ -257,6 +258,7 @@ class Network(object):
 			for x,t in trainingSet:
 				self.update(x)
 				self.backProp(x,t)
+			self.save()
 			lasterror = error
 			error = self.error(testSet)
 			i += 1
@@ -285,6 +287,34 @@ class Network(object):
 			s += ("[-Hidden] <L%d> | "  % i)+ str(self.layers[i].units[0]) + " ... " + str(self.layers[i].units[-1]) + "\n"
 		s += "[--Input] <L0> | " + str(self.layers[0].units[0]) + " ... " + str(self.layers[0].units[-1])
 		return s
+
+	def toString(self):
+		d = {}
+		d["sizes"] = self.sizes
+		d["hiddenClass"] = self.hiddenClass
+		d["outputClass"] = self.outputClass
+		d["ref"] = self.ref
+		d["learningRate"] = self.rate
+		d["moment"] = self.alpha
+		d["outfile"] = self.outfile
+		d["layers"] = []
+		for layer in self.layers[1:]:
+			d["layers"].append([unit.weight for unit in layer.units])
+		return repr(d)
+
+	@staticmethod
+	def fromString(s):
+		d = eval(s)
+		net = Network(d["ref"],d["learningRate"],d["sizes"],moment=d["moment"],hiddenClass=d["hiddenClass"],outputClass=d["outputClass"])
+		for n,layer in enumerate(net.layers):
+			if n == 0: continue # input unit does not need to be loaded
+			for index,unit in enumerate(layer.units):
+				unit.weight = d["layers"][n-1][index]
+		return net
+
+	def save(self):
+		with open(self.outfile,"wt") as f:
+			f.write(self.toString())
 
 def parseClass(unitClass):
 	if unitClass == "ThresholdUnit":
@@ -376,23 +406,30 @@ def testNetwork():
 		assert outputUnit.downstream == []
 		assert outputUnit.upstream == ANN.layers[1].units
 	ANN.update(np.random.rand(64*48))
-	ANN.update(np.zeros(64*48))
+	ANN.update(np.ones(64*48))
+	old = copy.copy(ANN.o)
+	ANN = Network.fromString(ANN.toString())
+	ANN.update(np.ones(64*48))
+	new = copy.copy(ANN.o)
+	assert old == new
 	print("Test on Network passed.")
 
 def main():
 
-	assert len(sys.argv) > 1
-	assert os.path.isdir(sys.argv[1])
+	assert len(sys.argv) > 2
 	n,m = 16,12
-	data = parseData(sys.argv[1])
-	ANN = Network("ANN",0.05,(m*n,60,3))
-	D = []
-	for key in data:
-		D.extend(random.sample(data[key],len(data[key])))
-	T = ([x for x in data['r'] if x not in D] + 
-		[x for x in data['l'] if x not in D] +
-		[x for x in data['s'] if x not in D])
-	ANN.train(D,D)
+	data = readData(sys.argv[1])
+	outfile = sys.argv[2]
+	ANN = Network("ANN",0.005,(m*n,60,3),outfile=outfile)
+	for i in range(10):
+		D = []
+		for key in data:
+			D.extend(random.sample(data[key],len(data[key])//2))
+		T = ([x for x in data['r'] if x not in D] + 
+			[x for x in data['l'] if x not in D] +
+			[x for x in data['s'] if x not in D])
+		ANN.train(D,T)
+	
 
 
 def parseData(path):
@@ -413,6 +450,10 @@ def parseData(path):
 		if decision[0] in res:
 			res[decision[0]].append((tuple(np.multiply(1/255,np.ndarray.flatten(img)).tolist()),tuple(t)))
 	return res
+
+def readData(path):
+	with open(path,"rt") as f:
+		return eval(f.readlines()[0])
 
 if __name__ == "__main__":
 	# testUnits()
