@@ -5,6 +5,7 @@ import numpy as np
 import os
 import sys
 import copy
+import cv2 as cv
 
 class N21Unit(object):
 	
@@ -459,4 +460,6 @@ if __name__ == "__main__":
 	# testUnits()
 	# testNetwork()
 	main()
+	# with open("training_examples_4","wt") as f:
+	# 	f.write(str(parseData(sys.argv[1])))
 

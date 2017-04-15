@@ -1,3 +1,6 @@
+import sys
+import os
+import cv2
 def main():
 	indir = sys.argv[1]
 	outdir = sys.argv[2]
