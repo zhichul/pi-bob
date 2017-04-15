@@ -421,11 +421,11 @@ def main():
 	n,m = 16,12
 	data = readData(sys.argv[1])
 	outfile = sys.argv[2]
-	ANN = Network("ANN",0.005,(m*n,60,3),outfile=outfile)
+	ANN = Network("ANN",0.05,(m*n,60,3),outfile=outfile)
 	for i in range(10):
 		D = []
 		for key in data:
-			D.extend(random.sample(data[key],len(data[key])//2))
+			D.extend(random.sample(data[key],len(data[key])*4//5))
 		T = ([x for x in data['r'] if x not in D] + 
 			[x for x in data['l'] if x not in D] +
 			[x for x in data['s'] if x not in D])
@@ -460,6 +460,5 @@ if __name__ == "__main__":
 	# testUnits()
 	# testNetwork()
 	main()
-	# with open("training_examples_4","wt") as f:
-	# 	f.write(str(parseData(sys.argv[1])))
+
 
