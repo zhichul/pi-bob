@@ -272,6 +272,15 @@ class Network(object):
 		return error
 
 	def errorRate(self,testSet):
+		if len(testSet[0][1]) == 1:
+			error = 0
+			with open("out","wt") as f:
+				for instance,t in testSet:
+					self.update(instance)
+					if abs(t[0]-self.o[0]) > 0.3:
+						error += 1
+					f.write(str(t)+"|"+str(self.o)+"\n")
+			return error/len(testSet)
 		error = 0
 		with open("out","wt") as f:
 			for instance,t in testSet:
@@ -312,6 +321,12 @@ class Network(object):
 			for index,unit in enumerate(layer.units):
 				unit.weight = d["layers"][n-1][index]
 		return net
+	
+	@staticmethod
+	def fromFile(s):
+		assert os.path.exists(s)
+		with open(s,"rt") as f:
+			return Network.fromString(f.readlines()[0])
 
 	def save(self):
 		with open(self.outfile,"wt") as f:
@@ -417,19 +432,22 @@ def testNetwork():
 
 def main():
 
-	assert len(sys.argv) > 2
+	assert len(sys.argv) > 3
 	n,m = 16,12
 	data = readData(sys.argv[1])
 	outfile = sys.argv[2]
-	ANN = Network("ANN",0.05,(m*n,60,3),outfile=outfile)
+	ANN = Network("ANN",0.05,(m*n,60,int(sys.argv[3])),outfile=outfile)
+	# data['r'] = random.sample(data['r'],len(data['r'])//2)
 	for i in range(10):
 		D = []
+		TT = []
 		for key in data:
-			D.extend(random.sample(data[key],len(data[key])*4//5))
+			D.extend(random.sample(data[key],len(data[key])))#*4//5))
+			TT.extend(random.sample(data[key],len(data[key])//5))
 		T = ([x for x in data['r'] if x not in D] + 
 			[x for x in data['l'] if x not in D] +
 			[x for x in data['s'] if x not in D])
-		ANN.train(D,T)
+		ANN.train(D,D) #,T)
 	
 
 
