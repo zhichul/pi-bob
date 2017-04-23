@@ -32,7 +32,7 @@ def main():
 	zero = np.float32(np.full((480,640),0))
 	for file in os.listdir(indir):
 		sfile = file.strip(".jpg")
-		for i in range(255//4,255*3//4,10):
+		for i in range(255//4,220,10):
 			img = np.float32(cv2.imread(os.path.join(indir,file),0))
 			img = np.minimum(img+i,full)
 			img = cv2.resize(img,(16,12))

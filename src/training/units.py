@@ -6,6 +6,7 @@ import os
 import sys
 import copy
 import cv2 as cv
+import time
 
 class N21Unit(object):
 	
@@ -192,7 +193,7 @@ class InputLayer(Layer):
 
 class Network(object):
 
-	def __init__(self,ref,learningRate,sizes,moment=0,hiddenClass="SigmoidUnit",outputClass="SigmoidUnit",outfile="nn.save"):
+	def __init__(self,ref,learningRate,sizes,moment=0,hiddenClass="SigmoidUnit",outputClass="SigmoidUnit",outfile="nn.save",tolerance=0.3):
 		assert len(sizes) >= 2
 		layerCount = len(sizes)
 		self.sizes = sizes
@@ -207,6 +208,8 @@ class Network(object):
 		self.layers += [Layer("L%d"%i,sizes[i],unitClass=hiddenClass) for i in range(1,layerCount-1)]
 		self.layers.append(Layer("L%d"%(layerCount-1),sizes[-1],unitClass=outputClass))
 		self.o = [None] * sizes[-1]
+		self.matrices = None
+		self.tolerance = tolerance
 		for i in range(len(self.layers)-1):
 			Layer.addLink(self.layers[i],self.layers[i+1])
 
@@ -215,6 +218,18 @@ class Network(object):
 		for i in range(1,len(self.layers)):
 			self.layers[i].update()
 		self.o = tuple([unit.o for unit in self.layers[-1].units])
+
+	def evaluate(self,x):
+		if self.matrices == None:
+			self.matrices = [np.transpose([unit.weight for unit in layer.units]) for layer in self.layers[1:]]
+		for i in range(len(self.layers)-1):
+			x = np.insert(x,0,1)
+			x = np.dot(x,self.matrices[i])
+			x = 1 / (1 + np.exp(-1*x))
+			# if i < len(self.layers)-2:
+			# 	print(i)
+			# 	x = np.multiply(1/len(self.layers[i].units),x)
+		return tuple(x)
 
 	def backProp(self,x,t):
 		# compute delta for output layer
@@ -277,7 +292,7 @@ class Network(object):
 			with open("out","wt") as f:
 				for instance,t in testSet:
 					self.update(instance)
-					if abs(t[0]-self.o[0]) > 0.3:
+					if abs((t[0]-self.o[0])) > self.tolerance:
 						error += 1
 					f.write(str(t)+"|"+str(self.o)+"\n")
 			return error/len(testSet)
@@ -432,11 +447,11 @@ def testNetwork():
 
 def main():
 
-	assert len(sys.argv) > 3
+	assert len(sys.argv) > 4
 	n,m = 16,12
 	data = readData(sys.argv[1])
 	outfile = sys.argv[2]
-	ANN = Network("ANN",0.05,(m*n,60,int(sys.argv[3])),outfile=outfile)
+	ANN = Network("ANN",0.05,(m*n,60,int(sys.argv[3])),outfile=outfile,tolerance=float(sys.argv[4]))
 	# data['r'] = random.sample(data['r'],len(data['r'])//2)
 	for i in range(10):
 		D = []
@@ -444,9 +459,7 @@ def main():
 		for key in data:
 			D.extend(random.sample(data[key],len(data[key])))#*4//5))
 			TT.extend(random.sample(data[key],len(data[key])//5))
-		T = ([x for x in data['r'] if x not in D] + 
-			[x for x in data['l'] if x not in D] +
-			[x for x in data['s'] if x not in D])
+		T = [x for x in data[key] if x not in D for key in D]
 		ANN.train(D,D) #,T)
 	
 
@@ -478,5 +491,29 @@ if __name__ == "__main__":
 	# testUnits()
 	# testNetwork()
 	main()
+	# a = Network.fromFile("nna_withblank.save")
+	# b = np.full((480,640),0.5)
+	# n = 1000
+	# timea = 0
+	# timeb = 0
+	# timecv = 0
+	# for i in range(n):
+	# 	x = np.ndarray.flatten(cv.resize(b,(16,12)))
+	# 	start = time.time()
+	# 	a.update(x)
+	# 	end = time.time()
+	# 	timea += (end-start)
+	# print(a.o)
+	# for i in range(n):
+	# 	start = time.time()
+	# 	x = np.ndarray.flatten(cv.resize(b,(16,12)))
+	# 	end = time.time()
+	# 	timecv += (end-start)
+	# 	start = time.time()
+	# 	m = a.evaluate(x)
+	# 	end = time.time()
+	# 	timeb += (end-start)
+	# print(m)
+	# print(timea/timeb,timecv/timeb)
 
 
