@@ -1,4 +1,5 @@
 from rcar import rsimplecar
+from rcar import rstandardcar
 import pygame
 import time
 import os
@@ -41,7 +42,8 @@ def main(arg):
     pygame.init()
     pygame.key.set_repeat(period, period)
     pygame.display.set_mode((1,1))
-    car = rsimplecar.SimpleCar(255,2)
+    # car = rsimplecar.SimpleCar(255,1.5,freq=20)
+    car = rstandardcar.Car(radius=2,max_speed=255)
     car.start()
     keys = set()
     while handle(car,keys):

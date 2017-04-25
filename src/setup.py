@@ -7,5 +7,5 @@ setup(name='rsystem',
       description='python robot system',
       author='Brian Lu',
       author_email='zlu7@cmu.edu',
-      packages=['rsystem', 'rplugin','rcar','rauto', 'pistreaming'],
+      packages=['rsystem', 'rplugin','rcar','rauto', 'pistreaming','training'],
      )
